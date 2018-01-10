@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>新闻</title>
+    {% load static %}
+    <script type="text/javascript" src="{% static "js/jquery-3.2.1.min.js" %}"></script>
+    <script type="text/javascript" src="{% static "layer/layer.js" %}"></script>
+</head>
+<style type="text/css">
+    .btn {
+        color: white;
+        background-color: #008aa6;
+        padding: 0px 1em;
+        height: 40px;
+        width: 80px;
+        margin-left: 10px;
+        border: 0px solid black;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        background-color: #ff0000;
+    }
+
+    /*active 要在后面 否则会被hover覆盖*/
+
+    .btn:focus {
+        background-color: #00ff00;
+    }
+
+    .btn:active {
+        background-color: #000000;
+    }
+    li {
+        padding: 5px;
+    }
+    a {
+        text-decoration:none;
+    }
+</style>
+<body>
+<form action="/search" method="get">
+    <div style="text-align: center">
+        <input style="height: 20px;width: 400px;padding: 10px;" type="text" placeholder="{{ keyword }}" name="q"
+               id="search_text" value="{{ search }}"/>
+        <input class="btn" type="submit" value="搜索"/>
+    </div>
+</form>
+<ul id="spider_web">
+    {% for web in web_list %}
+        <li><a href="{{ web.url }}" target="_blank">{{ web.title }}</a></li>
+    {% endfor %}
+</ul>
+</body>
+</html>
+<script>
+    // 滚动条距底部的距离
+    var BOTTOM_OFFSET = 0;
+    // 当前page
+    var curpage = 1;
+    // 当前是否在加载数据
+    var loading = false;
+    $(function () {
+        // Handler for .ready() called.
+        layer.ready(function () {
+        });
+        $(window).scroll(function () {
+            //当前窗口的高度
+            var windowHeight = $(window).height();
+            // console.log("current widow height is " + windowHeight);
+            //当前滚动条从上往下滚动的距离
+            var scrollTop = $(window).scrollTop();
+            // console.log("current scrollTop is " + scrollTop);
+            //当前文档的高度
+            var docHeight = $(document).height();
+            // console.log("current docHeight is " + docHeight);
+            var treeHeight = $('#spider_web').height();
+            // console.log("current treeHeight is " + treeHeight);
+            if (treeHeight < windowHeight) {
+                $('#spider_web').css('margin-top', scrollTop);
+            }
+            var htmlHeight = treeHeight > windowHeight ? treeHeight : windowHeight;
+
+            //当 滚动条距底部的距离 + 滚动条滚动的距离 >= 文档的高度 - 窗口的高度
+            //换句话说：（滚动条滚动的距离 + 窗口的高度 = 文档的高度）  这个是基本的公式
+            if ((BOTTOM_OFFSET + scrollTop) >= docHeight - htmlHeight && scrollTop > 0) {
+                getPageData(++curpage);
+            }
+        });
+    });
+
+    function getPageData(page) {
+        if (loading) {
+            return;
+        }
+        loading = true;
+        $.ajax({
+            url: '/search_post',
+            data: {
+                'p': page,
+                'q': $('#search_text').val(),
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            dataType: 'json',
+            type: 'post',
+            success: function (ret) {
+                if (ret.code === 200) {
+                    for (var i in ret.data) {
+                        var html = '<a href="' + ret.data[i].url + '" target="_blank">' + ret.data[i].title + '</a>';
+                        var li = $('<li>').html(html);
+                        $('#spider_web').append(li);
+                    }
+                } else {
+                    layer.alert(ret.msg);
+                }
+                loading = false;
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                /*错误信息处理*/
+                loading = false;
+            }
+        });
+    }
+</script>
